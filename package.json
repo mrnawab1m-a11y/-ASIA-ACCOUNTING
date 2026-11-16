@@ -1,0 +1,7 @@
+{
+  "name": "asia-accounting",
+  "version": "1.0.0",
+  "private": true,
+  "engines": { "node": "22.x" },
+  "dependencies": { "@neondatabase/serverless": "^1.0.2" }
+}
