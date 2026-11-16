@@ -68,9 +68,11 @@ module.exports = async function handler(req,res) {
     const pin = String(body.pin || "");
     if (!/^[0-9]{6}$/.test(pin)) return reply(res,400,{ok:false,error:"pin_must_be_six_digits"});
     const ip = ipDigest(req);
-    const attempt = await sql`SELECT failures,locked_until,updated_at FROM auth_attempts WHERE ip_hash=${ip} LIMIT 1`;
+    const [attempt, users] = await Promise.all([
+      sql`SELECT failures,locked_until,updated_at FROM auth_attempts WHERE ip_hash=${ip} LIMIT 1`,
+      sql`SELECT id,username,pin_hash FROM app_users WHERE active=true AND is_admin=true ORDER BY created_at ASC LIMIT 1`
+    ]);
     if (attempt.length && attempt[0].locked_until && new Date(attempt[0].locked_until)>new Date()) return reply(res,429,{ok:false,error:"temporarily_locked"});
-    const users = await sql`SELECT id,username,pin_hash FROM app_users WHERE active=true AND is_admin=true ORDER BY created_at ASC LIMIT 1`;
     const valid = users.length ? await verifyPin(pin,users[0].pin_hash) : false;
     if (!valid) {
       await sql`INSERT INTO auth_attempts(ip_hash,failures,locked_until,updated_at) VALUES(${ip},1,NULL,now())
@@ -80,11 +82,13 @@ module.exports = async function handler(req,res) {
         updated_at=now()`;
       return reply(res,401,{ok:false,error:"invalid_pin"});
     }
-    await sql`INSERT INTO auth_attempts(ip_hash,failures,locked_until,updated_at) VALUES(${ip},0,NULL,now())
-      ON CONFLICT(ip_hash) DO UPDATE SET failures=0,locked_until=NULL,updated_at=now()`;
     const session = crypto.randomBytes(32).toString("hex");
     const sessionHash = crypto.createHash("sha256").update(session).digest("hex");
-    await sql`INSERT INTO auth_sessions(user_id,token_hash,expires_at) VALUES(${users[0].id},${sessionHash},now()+interval '7 days')`;
+    await sql.transaction([
+      sql`INSERT INTO auth_attempts(ip_hash,failures,locked_until,updated_at) VALUES(${ip},0,NULL,now())
+        ON CONFLICT(ip_hash) DO UPDATE SET failures=0,locked_until=NULL,updated_at=now()`,
+      sql`INSERT INTO auth_sessions(user_id,token_hash,expires_at) VALUES(${users[0].id},${sessionHash},now()+interval '7 days')`
+    ]);
     return reply(res,200,{ok:true,authenticated:true,username:users[0].username},{ "Set-Cookie":setCookie(session,SESSION_SECONDS) });
   } catch (err) {
     console.error("Asia auth failure:",err?.message || "unknown");
