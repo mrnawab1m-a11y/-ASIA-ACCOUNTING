@@ -49,7 +49,7 @@ module.exports=async function handler(req,res){
   return send(res,201,{ok:true,sale:result[0].sale});
  }catch(error){
   const msg=String(error?.message||"");
-  const known=["invalid_sale","invalid_item","invalid_paid_amount","customer_not_found","product_not_found"];
+  const known=["invalid_sale","invalid_item","invalid_paid_amount","customer_not_found","product_not_found","duplicate_product","invalid_customer"];
   if(known.some(x=>msg.includes(x)))return send(res,400,{ok:false,error:known.find(x=>msg.includes(x))});
   if(msg.includes("insufficient_stock"))return send(res,409,{ok:false,error:"insufficient_stock"});
   console.error("Asia sales API error:",msg.slice(0,300));return send(res,500,{ok:false,error:"server_error"});
