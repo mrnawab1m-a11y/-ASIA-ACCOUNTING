@@ -61,7 +61,7 @@ module.exports = async function handler(req, res) {
         FROM products p
         LEFT JOIN stock_movements sm ON sm.product_id = p.id AND sm.workspace_id = p.workspace_id
         WHERE p.workspace_id = ${workspaceId} AND p.active = true
-        GROUP BY p.id ORDER BY p.created_at DESC LIMIT 200`;
+        GROUP BY p.id ORDER BY p.created_at DESC`;
       return send(res, 200, { ok: true, products: rows });
     }
 
