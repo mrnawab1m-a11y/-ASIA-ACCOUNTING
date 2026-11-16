@@ -23,8 +23,8 @@ module.exports=async function handler(req,res){
   let input;try{input=await bodyOf(req)}catch{return send(res,413,{ok:false,error:"request_too_large"})}
   const currency=clean(input.currency||"AFN"),rate=Number(input.exchange_rate),paid=Number(input.paid_amount||0),customerId=clean(input.customer_id)||null,notes=clean(input.notes);
   if(!["AFN","USD","PKR"].includes(currency)||!Number.isFinite(rate)||rate<=0||!Number.isFinite(paid)||paid<0||notes.length>1000||!Array.isArray(input.items)||!input.items.length||input.items.length>50)return send(res,400,{ok:false,error:"invalid_sale"});
-  const items=[];
-  for(const x of input.items){const product_id=clean(x.product_id),quantity=Number(x.quantity),unit_price=Number(x.unit_price);if(!/^[0-9a-f-]{36}$/i.test(product_id)||!Number.isFinite(quantity)||quantity<=0||!Number.isFinite(unit_price)||unit_price<0)return send(res,400,{ok:false,error:"invalid_item"});items.push({product_id,quantity,unit_price})}
+  const items=[],seenProducts=new Set();
+  for(const x of input.items){const product_id=clean(x.product_id),quantity=Number(x.quantity),unit_price=Number(x.unit_price);if(!/^[0-9a-f-]{36}$/i.test(product_id)||!Number.isFinite(quantity)||quantity<=0||!Number.isFinite(unit_price)||unit_price<0)return send(res,400,{ok:false,error:"invalid_item"});if(seenProducts.has(product_id))return send(res,400,{ok:false,error:"duplicate_product"});seenProducts.add(product_id);items.push({product_id,quantity,unit_price})}
   const result=await sql`SELECT register_asia_sale(${workspaceId}::uuid,${customerId}::uuid,${currency},${rate},${paid},${notes},${JSON.stringify(items)}::jsonb) AS sale`;
   return send(res,201,{ok:true,sale:result[0].sale});
  }catch(error){
