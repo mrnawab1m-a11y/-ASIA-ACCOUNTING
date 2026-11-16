@@ -90,9 +90,11 @@ module.exports=async function(req,res){
     sql`SELECT COUNT(*)::int AS count FROM purchases WHERE workspace_id=${wid}`
    ]);
    const machineCash=await sql`SELECT
-     COALESCE((SELECT SUM(amount*exchange_rate) FROM payments WHERE workspace_id=${wid} AND customer_id IS NOT NULL),0)
+     COALESCE((SELECT SUM(paid_amount*exchange_rate) FROM sales WHERE workspace_id=${wid}),0)
+     + COALESCE((SELECT SUM(amount*exchange_rate) FROM payments WHERE workspace_id=${wid} AND customer_id IS NOT NULL AND sale_id IS NULL),0)
      + COALESCE((SELECT SUM(amount*exchange_rate) FROM machine_income WHERE workspace_id=${wid}),0)
-     - COALESCE((SELECT SUM(amount*exchange_rate) FROM payments WHERE workspace_id=${wid} AND supplier_id IS NOT NULL),0)
+     - COALESCE((SELECT SUM(paid_amount*exchange_rate) FROM purchases WHERE workspace_id=${wid}),0)
+     - COALESCE((SELECT SUM(amount*exchange_rate) FROM payments WHERE workspace_id=${wid} AND supplier_id IS NOT NULL AND purchase_id IS NULL),0)
      - COALESCE((SELECT SUM(amount*exchange_rate) FROM expenses WHERE workspace_id=${wid}),0) AS cash_balance_afn`;
    return send(res,200,{ok:true,summary:summary[0],daily,stock,cashbox:machineCash[0],counts:{expenses:expenses[0],sales:sales[0],purchases:purchases[0]}});
   }
