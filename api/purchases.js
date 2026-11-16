@@ -55,6 +55,8 @@ module.exports=async function(req,res){
     VALUES(${purchaseId},${item.productId},${item.quantity},${item.unit},${item.unitPrice},${currency},${item.lineTotal})`);
    statements.push(sql`INSERT INTO stock_movements(workspace_id,product_id,movement_type,quantity_delta,unit,unit_cost,source_id,notes)
     VALUES(${workspaceId},${item.productId},'purchase',${item.quantity},${item.unit},${item.afnUnitCost},${purchaseId},${"خرید "+documentNo})`);
+   statements.push(sql`INSERT INTO stock_cost_layers(workspace_id,product_id,source_purchase_id,quantity_received,quantity_remaining,unit_cost)
+    VALUES(${workspaceId},${item.productId},${purchaseId},${item.quantity},${item.quantity},${item.afnUnitCost})`);
   }
   if(paid>0)statements.push(sql`INSERT INTO payments(workspace_id,supplier_id,purchase_id,amount,currency,exchange_rate,notes)
     VALUES(${workspaceId},${supplierId},${purchaseId},${paid},${currency},${rate},${"پرداخت خرید "+documentNo})`);
