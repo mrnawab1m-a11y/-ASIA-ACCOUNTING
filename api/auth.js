@@ -66,7 +66,7 @@ module.exports = async function handler(req,res) {
       return reply(res,200,{ok:true},{ "Set-Cookie":setCookie("",0) });
     }
     const pin = String(body.pin || "");
-    if (!/^\\d{6}$/.test(pin)) return reply(res,400,{ok:false,error:"pin_must_be_six_digits"});
+    if (!/^[0-9]{6}$/.test(pin)) return reply(res,400,{ok:false,error:"pin_must_be_six_digits"});
     const ip = ipDigest(req);
     const attempt = await sql`SELECT failures,locked_until,updated_at FROM auth_attempts WHERE ip_hash=${ip} LIMIT 1`;
     if (attempt.length && attempt[0].locked_until && new Date(attempt[0].locked_until)>new Date()) return reply(res,429,{ok:false,error:"temporarily_locked"});
