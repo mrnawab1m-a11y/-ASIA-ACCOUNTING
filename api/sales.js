@@ -25,7 +25,27 @@ module.exports=async function handler(req,res){
   if(!["AFN","USD","PKR"].includes(currency)||!Number.isFinite(rate)||rate<=0||!Number.isFinite(paid)||paid<0||notes.length>1000||!Array.isArray(input.items)||!input.items.length||input.items.length>50)return send(res,400,{ok:false,error:"invalid_sale"});
   const items=[],seenProducts=new Set();
   for(const x of input.items){const product_id=clean(x.product_id),quantity=Number(x.quantity),unit_price=Number(x.unit_price);if(!/^[0-9a-f-]{36}$/i.test(product_id)||!Number.isFinite(quantity)||quantity<=0||!Number.isFinite(unit_price)||unit_price<0)return send(res,400,{ok:false,error:"invalid_item"});if(seenProducts.has(product_id))return send(res,400,{ok:false,error:"duplicate_product"});seenProducts.add(product_id);items.push({product_id,quantity,unit_price})}
-  const result=await sql`SELECT register_asia_sale(${workspaceId}::uuid,${customerId}::uuid,${currency},${rate},${paid},${notes},${JSON.stringify(items)}::jsonb) AS sale`;
+  const customerName=clean(input.customer_name),customerPhone=clean(input.customer_phone);
+  if(customerName.length>160||customerPhone.length>40)return send(res,400,{ok:false,error:"invalid_customer"});
+  const itemsJson=JSON.stringify(items);
+  const result=await sql`WITH existing_customer AS (
+    SELECT id FROM customers
+    WHERE workspace_id=${workspaceId}
+      AND ((${customerPhone}<>'' AND phone=${customerPhone}) OR (${customerName}<>'' AND name=${customerName}))
+    ORDER BY CASE WHEN ${customerPhone}<>'' AND phone=${customerPhone} THEN 0 ELSE 1 END
+    LIMIT 1
+  ), new_customer AS (
+    INSERT INTO customers(workspace_id,name,phone)
+    SELECT ${workspaceId},CASE WHEN ${customerName}<>'' THEN ${customerName} ELSE ${customerPhone} END,NULLIF(${customerPhone},'')
+    WHERE ${customerId}::uuid IS NULL AND (${customerName}<>'' OR ${customerPhone}<>'')
+      AND NOT EXISTS(SELECT 1 FROM existing_customer)
+    RETURNING id
+  ), chosen_customer AS (
+    SELECT ${customerId}::uuid AS id WHERE ${customerId}::uuid IS NOT NULL
+    UNION ALL SELECT id FROM existing_customer WHERE ${customerId}::uuid IS NULL
+    UNION ALL SELECT id FROM new_customer WHERE ${customerId}::uuid IS NULL
+  )
+  SELECT register_asia_sale(${workspaceId}::uuid,COALESCE((SELECT id FROM chosen_customer LIMIT 1),NULL::uuid),${currency},${rate},${paid},${notes},${itemsJson}::jsonb) AS sale`;
   return send(res,201,{ok:true,sale:result[0].sale});
  }catch(error){
   const msg=String(error?.message||"");
