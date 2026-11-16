@@ -23,8 +23,9 @@ module.exports=async function(req,res){
    }
    let x;try{x=await body(req)}catch{return send(res,413,{error:"request_too_large"})}
    const title=clean(x.title),currency=clean(x.currency),amount=num(x.amount),rate=num(x.exchange_rate),notes=clean(x.notes),expenseScope=clean(x.expense_scope||"general");
-   if(!title||title.length>160||!["AFN","USD","PKR"].includes(currency)||!Number.isFinite(amount)||amount<=0||!Number.isFinite(rate)||rate<=0||notes.length>1000||!["general","machine"].includes(expenseScope))return send(res,400,{error:"invalid_expense"});
+   if(!title||title.length>160||!["AFN","USD","PKR"].includes(currency)||!Number.isFinite(amount)||amount<=0||!Number.isFinite(rate)||rate<=0||rate>1000000||notes.length>1000||!["general","machine"].includes(expenseScope))return send(res,400,{error:"invalid_expense"});
    if(currency==="AFN"&&rate!==1)return send(res,400,{error:"afn_rate_must_be_one"});
+   
    const rows=await sql`INSERT INTO expenses(workspace_id,title,amount,currency,exchange_rate,notes,expense_scope) VALUES(${wid},${title},${amount},${currency},${rate},NULLIF(${notes},''),${expenseScope}) RETURNING id,title,amount,currency,exchange_rate,spent_at,notes,expense_scope`;
    return send(res,201,{ok:true,expense:rows[0]});
   }
@@ -35,7 +36,7 @@ module.exports=async function(req,res){
    }
    let x;try{x=await body(req)}catch{return send(res,413,{error:"request_too_large"})}
    const currency=clean(x.currency||"AFN"),amount=num(x.amount),rate=num(x.exchange_rate),notes=clean(x.notes);
-   if(!["AFN","USD","PKR"].includes(currency)||!Number.isFinite(amount)||amount<=0||!Number.isFinite(rate)||rate<=0||notes.length>1000||(currency==="AFN"&&rate!==1))return send(res,400,{error:"invalid_machine_income"});
+   if(!["AFN","USD","PKR"].includes(currency)||!Number.isFinite(amount)||amount<=0||!Number.isFinite(rate)||rate<=0||rate>1000000||notes.length>1000||(currency==="AFN"&&rate!==1))return send(res,400,{error:"invalid_machine_income"});
    const rows=await sql`INSERT INTO machine_income(workspace_id,amount,currency,exchange_rate,notes) VALUES(${wid},${amount},${currency},${rate},NULLIF(${notes},'')) RETURNING id,amount,currency,exchange_rate,received_at,notes,(amount*exchange_rate) AS amount_afn`;
    return send(res,201,{ok:true,income:rows[0]});
   }
@@ -55,7 +56,7 @@ module.exports=async function(req,res){
    if(req.method!=="POST")return send(res,405,{error:"method_not_allowed"});
    let x;try{x=await body(req)}catch{return send(res,413,{error:"request_too_large"})}
    const entityId=clean(action==="customer-payment"?x.customer_id:x.supplier_id),currency=clean(x.currency),amount=num(x.amount),rate=num(x.exchange_rate);
-   if(!/^[0-9a-f-]{36}$/i.test(entityId)||!["AFN","USD","PKR"].includes(currency)||!Number.isFinite(amount)||amount<=0||!Number.isFinite(rate)||rate<=0||(currency==="AFN"&&rate!==1))return send(res,400,{error:"invalid_payment"});
+   if(!/^[0-9a-f-]{36}$/i.test(entityId)||!["AFN","USD","PKR"].includes(currency)||!Number.isFinite(amount)||amount<=0||!Number.isFinite(rate)||rate<=0||rate>1000000||(currency==="AFN"&&rate!==1))return send(res,400,{error:"invalid_payment"});
    const customer=action==="customer-payment";
    const rows=customer?await sql`WITH entity AS (SELECT id FROM customers WHERE id=${entityId} AND workspace_id=${wid}), lock_row AS (SELECT pg_advisory_xact_lock(hashtextextended(${wid}::text||':customer:'||${entityId},0)) FROM entity), balance AS (SELECT COALESCE((SELECT SUM(s.total_amount*s.exchange_rate) FROM sales s WHERE s.customer_id=${entityId} AND s.workspace_id=${wid}),0)-COALESCE((SELECT SUM(p.amount*p.exchange_rate) FROM payments p WHERE p.customer_id=${entityId} AND p.workspace_id=${wid}),0) AS due FROM lock_row), inserted AS (INSERT INTO payments(workspace_id,customer_id,amount,currency,exchange_rate,notes) SELECT ${wid},${entityId},${amount},${currency},${rate},'دریافت پرداخت حساب مشتری' FROM balance WHERE due>=${amount*rate} AND due>0 RETURNING id,amount,currency,exchange_rate,paid_at) SELECT due,(SELECT row_to_json(i) FROM inserted i) AS payment FROM balance`:
    await sql`WITH entity AS (SELECT id FROM suppliers WHERE id=${entityId} AND workspace_id=${wid}), lock_row AS (SELECT pg_advisory_xact_lock(hashtextextended(${wid}::text||':supplier:'||${entityId},0)) FROM entity), balance AS (SELECT COALESCE((SELECT SUM(b.total_amount*b.exchange_rate) FROM purchases b WHERE b.supplier_id=${entityId} AND b.workspace_id=${wid}),0)-COALESCE((SELECT SUM(p.amount*p.exchange_rate) FROM payments p WHERE p.supplier_id=${entityId} AND p.workspace_id=${wid}),0) AS due FROM lock_row), inserted AS (INSERT INTO payments(workspace_id,supplier_id,amount,currency,exchange_rate,notes) SELECT ${wid},${entityId},${amount},${currency},${rate},'پرداخت حساب فروشنده' FROM balance WHERE due>=${amount*rate} AND due>0 RETURNING id,amount,currency,exchange_rate,paid_at) SELECT due,(SELECT row_to_json(i) FROM inserted i) AS payment FROM balance`;
