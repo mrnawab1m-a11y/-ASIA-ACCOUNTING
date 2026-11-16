@@ -18,15 +18,26 @@ module.exports=async function(req,res){
   const wid=auth[0].workspace_id,action=new URL(req.url,"https://local.invalid").searchParams.get("action")||"";
   if(action==="expenses"){
    if(req.method==="GET"){
-    const rows=await sql`SELECT id,title,amount,currency,exchange_rate,spent_at,notes,(amount*exchange_rate) AS amount_afn FROM expenses WHERE workspace_id=${wid} ORDER BY spent_at DESC LIMIT 200`;
+    const rows=await sql`SELECT id,title,amount,currency,exchange_rate,spent_at,notes,expense_scope,(amount*exchange_rate) AS amount_afn FROM expenses WHERE workspace_id=${wid} ORDER BY spent_at DESC LIMIT 200`;
     return send(res,200,{ok:true,expenses:rows});
    }
    let x;try{x=await body(req)}catch{return send(res,413,{error:"request_too_large"})}
-   const title=clean(x.title),currency=clean(x.currency),amount=num(x.amount),rate=num(x.exchange_rate),notes=clean(x.notes);
-   if(!title||title.length>160||!["AFN","USD","PKR"].includes(currency)||!Number.isFinite(amount)||amount<=0||!Number.isFinite(rate)||rate<=0||notes.length>1000)return send(res,400,{error:"invalid_expense"});
+   const title=clean(x.title),currency=clean(x.currency),amount=num(x.amount),rate=num(x.exchange_rate),notes=clean(x.notes),expenseScope=clean(x.expense_scope||"general");
+   if(!title||title.length>160||!["AFN","USD","PKR"].includes(currency)||!Number.isFinite(amount)||amount<=0||!Number.isFinite(rate)||rate<=0||notes.length>1000||!["general","machine"].includes(expenseScope))return send(res,400,{error:"invalid_expense"});
    if(currency==="AFN"&&rate!==1)return send(res,400,{error:"afn_rate_must_be_one"});
-   const rows=await sql`INSERT INTO expenses(workspace_id,title,amount,currency,exchange_rate,notes) VALUES(${wid},${title},${amount},${currency},${rate},NULLIF(${notes},'')) RETURNING id,title,amount,currency,exchange_rate,spent_at,notes`;
+   const rows=await sql`INSERT INTO expenses(workspace_id,title,amount,currency,exchange_rate,notes,expense_scope) VALUES(${wid},${title},${amount},${currency},${rate},NULLIF(${notes},''),${expenseScope}) RETURNING id,title,amount,currency,exchange_rate,spent_at,notes,expense_scope`;
    return send(res,201,{ok:true,expense:rows[0]});
+  }
+  if(action==="machine-income"){
+   if(req.method==="GET"){
+    const rows=await sql`SELECT id,amount,currency,exchange_rate,received_at,notes,(amount*exchange_rate) AS amount_afn FROM machine_income WHERE workspace_id=${wid} ORDER BY received_at DESC LIMIT 200`;
+    return send(res,200,{ok:true,incomes:rows});
+   }
+   let x;try{x=await body(req)}catch{return send(res,413,{error:"request_too_large"})}
+   const currency=clean(x.currency||"AFN"),amount=num(x.amount),rate=num(x.exchange_rate),notes=clean(x.notes);
+   if(!["AFN","USD","PKR"].includes(currency)||!Number.isFinite(amount)||amount<=0||!Number.isFinite(rate)||rate<=0||notes.length>1000||(currency==="AFN"&&rate!==1))return send(res,400,{error:"invalid_machine_income"});
+   const rows=await sql`INSERT INTO machine_income(workspace_id,amount,currency,exchange_rate,notes) VALUES(${wid},${amount},${currency},${rate},NULLIF(${notes},'')) RETURNING id,amount,currency,exchange_rate,received_at,notes,(amount*exchange_rate) AS amount_afn`;
+   return send(res,201,{ok:true,income:rows[0]});
   }
   if(action==="rates"){
    if(req.method==="GET"){
@@ -59,18 +70,31 @@ module.exports=async function(req,res){
      COALESCE((SELECT SUM(total_amount*exchange_rate) FROM sales WHERE workspace_id=${wid} AND (sold_at AT TIME ZONE 'Asia/Kabul')::date=(now() AT TIME ZONE 'Asia/Kabul')::date),0) AS today_sales,
      COALESCE((SELECT SUM(gross_profit) FROM sales WHERE workspace_id=${wid} AND (sold_at AT TIME ZONE 'Asia/Kabul')::date=(now() AT TIME ZONE 'Asia/Kabul')::date),0) AS today_profit,
      COALESCE((SELECT SUM(amount*exchange_rate) FROM expenses WHERE workspace_id=${wid} AND (spent_at AT TIME ZONE 'Asia/Kabul')::date=(now() AT TIME ZONE 'Asia/Kabul')::date),0) AS today_expenses,
-     COALESCE((SELECT SUM(gross_profit) FROM sales WHERE workspace_id=${wid} AND (sold_at AT TIME ZONE 'Asia/Kabul')::date=(now() AT TIME ZONE 'Asia/Kabul')::date),0) - COALESCE((SELECT SUM(amount*exchange_rate) FROM expenses WHERE workspace_id=${wid} AND (spent_at AT TIME ZONE 'Asia/Kabul')::date=(now() AT TIME ZONE 'Asia/Kabul')::date),0) AS today_net_profit,
+     COALESCE((SELECT SUM(gross_profit) FROM sales WHERE workspace_id=${wid} AND (sold_at AT TIME ZONE 'Asia/Kabul')::date=(now() AT TIME ZONE 'Asia/Kabul')::date),0)
+       + COALESCE((SELECT SUM(amount*exchange_rate) FROM machine_income WHERE workspace_id=${wid} AND (received_at AT TIME ZONE 'Asia/Kabul')::date=(now() AT TIME ZONE 'Asia/Kabul')::date),0)
+       - COALESCE((SELECT SUM(amount*exchange_rate) FROM expenses WHERE workspace_id=${wid} AND (spent_at AT TIME ZONE 'Asia/Kabul')::date=(now() AT TIME ZONE 'Asia/Kabul')::date),0) AS today_net_profit,
+     COALESCE((SELECT SUM(amount*exchange_rate) FROM machine_income WHERE workspace_id=${wid} AND (received_at AT TIME ZONE 'Asia/Kabul')::date=(now() AT TIME ZONE 'Asia/Kabul')::date),0) AS today_machine_income,
+     COALESCE((SELECT SUM(amount*exchange_rate) FROM expenses WHERE workspace_id=${wid} AND expense_scope='machine' AND (spent_at AT TIME ZONE 'Asia/Kabul')::date=(now() AT TIME ZONE 'Asia/Kabul')::date),0) AS today_machine_expenses,
      COALESCE((SELECT SUM(total_amount*exchange_rate) FROM sales WHERE workspace_id=${wid}),0) AS all_sales,
      COALESCE((SELECT SUM(gross_profit) FROM sales WHERE workspace_id=${wid}),0) AS all_gross_profit,
      COALESCE((SELECT SUM(amount*exchange_rate) FROM expenses WHERE workspace_id=${wid}),0) AS all_expenses,
-     COALESCE((SELECT SUM(gross_profit) FROM sales WHERE workspace_id=${wid}),0) - COALESCE((SELECT SUM(amount*exchange_rate) FROM expenses WHERE workspace_id=${wid}),0) AS all_net_profit`,
+     COALESCE((SELECT SUM(gross_profit) FROM sales WHERE workspace_id=${wid}),0)
+       + COALESCE((SELECT SUM(amount*exchange_rate) FROM machine_income WHERE workspace_id=${wid}),0)
+       - COALESCE((SELECT SUM(amount*exchange_rate) FROM expenses WHERE workspace_id=${wid}),0) AS all_net_profit,
+     COALESCE((SELECT SUM(amount*exchange_rate) FROM machine_income WHERE workspace_id=${wid}),0) AS all_machine_income,
+     COALESCE((SELECT SUM(amount*exchange_rate) FROM expenses WHERE workspace_id=${wid} AND expense_scope='machine'),0) AS all_machine_expenses`,
     sql`SELECT (sold_at AT TIME ZONE 'Asia/Kabul')::date AS day,COUNT(*)::int AS invoice_count,SUM(total_amount*exchange_rate) AS sales_afn,SUM(gross_profit) AS gross_profit_afn FROM sales WHERE workspace_id=${wid} AND sold_at>=now()-interval '30 days' GROUP BY (sold_at AT TIME ZONE 'Asia/Kabul')::date ORDER BY day DESC LIMIT 30`,
     sql`SELECT p.id,p.name,p.unit,COALESCE(SUM(m.quantity_delta),0) AS stock_quantity FROM products p LEFT JOIN stock_movements m ON m.product_id=p.id AND m.workspace_id=p.workspace_id WHERE p.workspace_id=${wid} AND p.active=true GROUP BY p.id,p.name,p.unit ORDER BY p.name`,
     sql`SELECT COUNT(*)::int AS count,COALESCE(SUM(amount*exchange_rate),0) AS total_afn FROM expenses WHERE workspace_id=${wid}`,
     sql`SELECT COUNT(*)::int AS count FROM sales WHERE workspace_id=${wid}`,
     sql`SELECT COUNT(*)::int AS count FROM purchases WHERE workspace_id=${wid}`
    ]);
-   return send(res,200,{ok:true,summary:summary[0],daily,stock,counts:{expenses:expenses[0],sales:sales[0],purchases:purchases[0]}});
+   const machineCash=await sql`SELECT
+     COALESCE((SELECT SUM(amount*exchange_rate) FROM payments WHERE workspace_id=${wid} AND customer_id IS NOT NULL),0)
+     + COALESCE((SELECT SUM(amount*exchange_rate) FROM machine_income WHERE workspace_id=${wid}),0)
+     - COALESCE((SELECT SUM(amount*exchange_rate) FROM payments WHERE workspace_id=${wid} AND supplier_id IS NOT NULL),0)
+     - COALESCE((SELECT SUM(amount*exchange_rate) FROM expenses WHERE workspace_id=${wid}),0) AS cash_balance_afn`;
+   return send(res,200,{ok:true,summary:summary[0],daily,stock,cashbox:machineCash[0],counts:{expenses:expenses[0],sales:sales[0],purchases:purchases[0]}});
   }
   return send(res,400,{error:"unknown_action"});
  }catch(error){console.error("Asia finance API error:",error?.message||"unknown");return send(res,500,{error:"server_error"})}
