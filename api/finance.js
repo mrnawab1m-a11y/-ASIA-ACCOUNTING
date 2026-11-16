@@ -84,7 +84,28 @@ module.exports=async function(req,res){
        - COALESCE((SELECT SUM(amount*exchange_rate) FROM expenses WHERE workspace_id=${wid}),0) AS all_net_profit,
      COALESCE((SELECT SUM(amount*exchange_rate) FROM machine_income WHERE workspace_id=${wid}),0) AS all_machine_income,
      COALESCE((SELECT SUM(amount*exchange_rate) FROM expenses WHERE workspace_id=${wid} AND expense_scope='machine'),0) AS all_machine_expenses`,
-    sql`SELECT (sold_at AT TIME ZONE 'Asia/Kabul')::date AS day,COUNT(*)::int AS invoice_count,SUM(total_amount*exchange_rate) AS sales_afn,SUM(gross_profit) AS gross_profit_afn FROM sales WHERE workspace_id=${wid} AND sold_at>=now()-interval '30 days' GROUP BY (sold_at AT TIME ZONE 'Asia/Kabul')::date ORDER BY day DESC LIMIT 30`,
+    sql`WITH daily_sales AS (
+      SELECT (sold_at AT TIME ZONE 'Asia/Kabul')::date AS day,COUNT(*)::int AS invoice_count,
+        SUM(total_amount*exchange_rate) AS sales_afn,SUM(gross_profit) AS gross_profit_afn
+      FROM sales WHERE workspace_id=${wid} AND sold_at>=now()-interval '30 days'
+      GROUP BY (sold_at AT TIME ZONE 'Asia/Kabul')::date
+     ), daily_machine AS (
+      SELECT (received_at AT TIME ZONE 'Asia/Kabul')::date AS day,SUM(amount*exchange_rate) AS machine_income_afn
+      FROM machine_income WHERE workspace_id=${wid} AND received_at>=now()-interval '30 days'
+      GROUP BY (received_at AT TIME ZONE 'Asia/Kabul')::date
+     ), daily_expenses AS (
+      SELECT (spent_at AT TIME ZONE 'Asia/Kabul')::date AS day,SUM(amount*exchange_rate) AS expenses_afn
+      FROM expenses WHERE workspace_id=${wid} AND spent_at>=now()-interval '30 days'
+      GROUP BY (spent_at AT TIME ZONE 'Asia/Kabul')::date
+     ), days AS (
+      SELECT day FROM daily_sales UNION SELECT day FROM daily_machine UNION SELECT day FROM daily_expenses
+     )
+     SELECT d.day,COALESCE(s.invoice_count,0)::int AS invoice_count,
+       COALESCE(s.sales_afn,0) AS sales_afn,COALESCE(s.gross_profit_afn,0) AS gross_profit_afn,
+       COALESCE(m.machine_income_afn,0) AS machine_income_afn,COALESCE(e.expenses_afn,0) AS expenses_afn,
+       COALESCE(s.gross_profit_afn,0)+COALESCE(m.machine_income_afn,0)-COALESCE(e.expenses_afn,0) AS net_profit_afn
+     FROM days d LEFT JOIN daily_sales s USING(day) LEFT JOIN daily_machine m USING(day)
+       LEFT JOIN daily_expenses e USING(day) ORDER BY d.day DESC LIMIT 30`,
     sql`SELECT p.id,p.name,p.unit,COALESCE(SUM(m.quantity_delta),0) AS stock_quantity FROM products p LEFT JOIN stock_movements m ON m.product_id=p.id AND m.workspace_id=p.workspace_id WHERE p.workspace_id=${wid} AND p.active=true GROUP BY p.id,p.name,p.unit ORDER BY p.name`,
     sql`SELECT COUNT(*)::int AS count,COALESCE(SUM(amount*exchange_rate),0) AS total_afn FROM expenses WHERE workspace_id=${wid}`,
     sql`SELECT COUNT(*)::int AS count FROM sales WHERE workspace_id=${wid}`,
