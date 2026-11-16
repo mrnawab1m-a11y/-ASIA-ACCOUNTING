@@ -57,7 +57,7 @@ module.exports=async function(req,res){
    const [summary,daily,stock,expenses,sales,purchases]=await Promise.all([
     sql`SELECT
      COALESCE((SELECT SUM(total_amount*exchange_rate) FROM sales WHERE workspace_id=${wid} AND (sold_at AT TIME ZONE 'Asia/Kabul')::date=(now() AT TIME ZONE 'Asia/Kabul')::date),0) AS today_sales,
-     COALESCE((SELECT SUM(gross_profit) FROM sales WHERE workspace_id=${wid} AND sold_at::date=CURRENT_DATE),0) AS today_profit,
+     COALESCE((SELECT SUM(gross_profit) FROM sales WHERE workspace_id=${wid} AND (sold_at AT TIME ZONE 'Asia/Kabul')::date=(now() AT TIME ZONE 'Asia/Kabul')::date),0) AS today_profit,
      COALESCE((SELECT SUM(amount*exchange_rate) FROM expenses WHERE workspace_id=${wid} AND (spent_at AT TIME ZONE 'Asia/Kabul')::date=(now() AT TIME ZONE 'Asia/Kabul')::date),0) AS today_expenses,
      COALESCE((SELECT SUM(gross_profit) FROM sales WHERE workspace_id=${wid} AND (sold_at AT TIME ZONE 'Asia/Kabul')::date=(now() AT TIME ZONE 'Asia/Kabul')::date),0) - COALESCE((SELECT SUM(amount*exchange_rate) FROM expenses WHERE workspace_id=${wid} AND (spent_at AT TIME ZONE 'Asia/Kabul')::date=(now() AT TIME ZONE 'Asia/Kabul')::date),0) AS today_net_profit,
      COALESCE((SELECT SUM(total_amount*exchange_rate) FROM sales WHERE workspace_id=${wid}),0) AS all_sales,
