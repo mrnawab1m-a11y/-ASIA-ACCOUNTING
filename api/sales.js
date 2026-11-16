@@ -26,12 +26,12 @@ module.exports=async function handler(req,res){
   const items=[],seenProducts=new Set();
   for(const x of input.items){const product_id=clean(x.product_id),quantity=Number(x.quantity),unit_price=Number(x.unit_price);if(!/^[0-9a-f-]{36}$/i.test(product_id)||!Number.isFinite(quantity)||quantity<=0||!Number.isFinite(unit_price)||unit_price<0)return send(res,400,{ok:false,error:"invalid_item"});if(seenProducts.has(product_id))return send(res,400,{ok:false,error:"duplicate_product"});seenProducts.add(product_id);items.push({product_id,quantity,unit_price})}
   const customerName=clean(input.customer_name),customerPhone=clean(input.customer_phone);
-  if(customerName.length>160||customerPhone.length>40)return send(res,400,{ok:false,error:"invalid_customer"});
+  if(customerName.length>160||customerPhone.length>40||(customerId&&!/^[0-9a-f-]{36}$/i.test(customerId)))return send(res,400,{ok:false,error:"invalid_customer"});
   const itemsJson=JSON.stringify(items);
   const result=await sql`WITH existing_customer AS (
     SELECT id FROM customers
     WHERE workspace_id=${workspaceId}
-      AND ((${customerPhone}<>'' AND phone=${customerPhone}) OR (${customerName}<>'' AND name=${customerName}))
+      AND ((${customerPhone}<>'' AND phone=${customerPhone}) OR (${customerPhone}='' AND ${customerName}<>'' AND name=${customerName}))
     ORDER BY CASE WHEN ${customerPhone}<>'' AND phone=${customerPhone} THEN 0 ELSE 1 END
     LIMIT 1
   ), new_customer AS (
