@@ -15,7 +15,7 @@ module.exports=async function(req,res){
   const sessions=await sql`SELECT u.workspace_id FROM auth_sessions s JOIN app_users u ON u.id=s.user_id WHERE s.token_hash=${hash} AND s.revoked_at IS NULL AND s.expires_at>now() AND u.active=true AND u.is_admin=true LIMIT 1`;
   if(!sessions.length)return send(res,401,{error:"unauthorized"});
   const workspaceId=sessions[0].workspace_id;
-  if(req.method==="GET"){const rows=await sql`SELECT id,name,phone,address,notes,created_at FROM customers WHERE workspace_id=${workspaceId} ORDER BY created_at DESC LIMIT 300`;return send(res,200,{ok:true,customers:rows})}
+  if(req.method==="GET"){const rows=await sql`SELECT c.id,c.name,c.phone,c.address,c.notes,c.created_at,COALESCE(SUM(s.total_amount*s.exchange_rate),0) AS total_sales_afn,COALESCE(SUM(s.paid_amount*s.exchange_rate),0) AS paid_sales_afn,COALESCE(SUM((s.total_amount-s.paid_amount)*s.exchange_rate),0) AS balance_afn FROM customers c LEFT JOIN sales s ON s.customer_id=c.id AND s.workspace_id=c.workspace_id WHERE c.workspace_id=${workspaceId} GROUP BY c.id ORDER BY c.created_at DESC LIMIT 300`;return send(res,200,{ok:true,customers:rows})}
   let input;try{input=await readBody(req)}catch{return send(res,413,{error:"request_too_large"})}
   const name=clean(input.name),phone=clean(input.phone),address=clean(input.address),notes=clean(input.notes);
   if(!name||name.length>160)return send(res,400,{error:"invalid_name"});
