@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" role="img" aria-labelledby="title desc">
+<title id="title">حسابداری آسیا</title><desc id="desc">نشان نمایندگی تایر، ویل و کپ</desc>
+<defs>
+ <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#fff1b7"/><stop offset=".32" stop-color="#e9bd58"/><stop offset=".68" stop-color="#a66d18"/><stop offset="1" stop-color="#ffe7a0"/></linearGradient>
+ <linearGradient id="navy" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#17385f"/><stop offset="1" stop-color="#061326"/></linearGradient>
+ <radialGradient id="rim"><stop stop-color="#f9fbff"/><stop offset=".38" stop-color="#aeb9c8"/><stop offset=".72" stop-color="#465264"/><stop offset="1" stop-color="#dce3ec"/></radialGradient>
+ <filter id="shadow"><feGaussianBlur stdDeviation="5"/></filter>
+</defs>
+<circle cx="320" cy="320" r="300" fill="#030b17"/><circle cx="320" cy="320" r="289" fill="url(#navy)" stroke="url(#gold)" stroke-width="12"/><circle cx="320" cy="320" r="270" fill="none" stroke="#d7b46a" stroke-width="2"/>
+<path d="M100 410 Q320 485 540 410 L540 520 Q320 590 100 520Z" fill="#07182e" stroke="url(#gold)" stroke-width="7"/>
+<!-- tire -->
+<circle cx="320" cy="275" r="168" fill="#03070d" stroke="#777f8c" stroke-width="10"/><circle cx="320" cy="275" r="145" fill="#101923" stroke="#252e39" stroke-width="18"/>
+<circle cx="320" cy="275" r="116" fill="url(#rim)" stroke="#f5d98f" stroke-width="5"/>
+<g fill="#263344" stroke="#f7f8fb" stroke-width="5">
+ <path d="M312 169 Q335 164 343 188 L332 253 308 253Z"/><path d="M312 169 Q335 164 343 188 L332 253 308 253Z" transform="rotate(45 320 275)"/>
+ <path d="M312 169 Q335 164 343 188 L332 253 308 253Z" transform="rotate(90 320 275)"/><path d="M312 169 Q335 164 343 188 L332 253 308 253Z" transform="rotate(135 320 275)"/>
+ <path d="M312 169 Q335 164 343 188 L332 253 308 253Z" transform="rotate(180 320 275)"/><path d="M312 169 Q335 164 343 188 L332 253 308 253Z" transform="rotate(225 320 275)"/>
+ <path d="M312 169 Q335 164 343 188 L332 253 308 253Z" transform="rotate(270 320 275)"/><path d="M312 169 Q335 164 343 188 L332 253 308 253Z" transform="rotate(315 320 275)"/>
+</g><circle cx="320" cy="275" r="42" fill="#0b1728" stroke="url(#gold)" stroke-width="7"/><circle cx="320" cy="275" r="13" fill="#e6c477"/>
+<!-- small hubcap icon -->
+<circle cx="468" cy="365" r="70" fill="url(#rim)" stroke="url(#gold)" stroke-width="7"/><circle cx="468" cy="365" r="50" fill="#15263c" stroke="#e7edf5" stroke-width="5"/>
+<g stroke="#e8edf5" stroke-width="8" stroke-linecap="round"><path d="M468 319V411 M422 365H514 M436 333L500 397 M500 333L436 397"/></g><circle cx="468" cy="365" r="13" fill="url(#gold)"/>
+<path d="M115 350 Q155 285 205 260 M525 260 Q575 285 595 350" fill="none" stroke="url(#gold)" stroke-width="9" stroke-linecap="round"/>
+<path d="M320 30 L338 66 378 72 349 100 356 140 320 121 284 140 291 100 262 72 302 66Z" fill="url(#gold)" stroke="#fff0bd" stroke-width="3"/>
+<text x="320" y="485" fill="url(#gold)" font-family="Tahoma,Arial,sans-serif" font-size="58" font-weight="bold" text-anchor="middle">حسابداری آسیا</text>
+<path d="M150 535H490" stroke="url(#gold)" stroke-width="3"/>
+<text x="320" y="570" fill="#f4d58a" font-family="Arial,sans-serif" font-size="27" letter-spacing="1.2" text-anchor="middle">haji nawab parwani</text>
+</svg>
