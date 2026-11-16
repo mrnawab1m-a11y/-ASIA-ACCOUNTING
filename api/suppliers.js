@@ -15,6 +15,25 @@ module.exports=async function(req,res){
   const sessions=await sql`SELECT u.workspace_id FROM auth_sessions s JOIN app_users u ON u.id=s.user_id WHERE s.token_hash=${hash} AND s.revoked_at IS NULL AND s.expires_at>now() AND u.active=true AND u.is_admin=true LIMIT 1`;
   if(!sessions.length)return send(res,401,{error:"unauthorized"});
   const workspaceId=sessions[0].workspace_id;
+  if(new URL(req.url,"https://local.invalid").searchParams.get("action")==="purchase"){
+   if(req.method==="GET"){
+    const rows=await sql`SELECT p.id,p.document_no,p.purchased_at,p.currency,p.exchange_rate,p.total_amount,p.paid_amount,s.name supplier_name,COALESCE(json_agg(json_build_object('product_name',pr.name,'quantity',pi.quantity,'unit',pi.unit,'unit_cost',pi.unit_cost)) FILTER(WHERE pi.id IS NOT NULL),'[]'::json) items FROM purchases p LEFT JOIN suppliers s ON s.id=p.supplier_id LEFT JOIN purchase_items pi ON pi.purchase_id=p.id LEFT JOIN products pr ON pr.id=pi.product_id WHERE p.workspace_id=${workspaceId} GROUP BY p.id,s.name ORDER BY p.purchased_at DESC LIMIT 100`;
+    return send(res,200,{ok:true,purchases:rows});
+   }
+   let input;try{input=await readBody(req)}catch{return send(res,413,{error:"request_too_large"})}
+   const supplierId=clean(input.supplier_id),currency=clean(input.currency),rate=Number(input.exchange_rate),paid=Number(input.paid_amount||0),notes=clean(input.notes),items=Array.isArray(input.items)?input.items:[];
+   if(!/^[0-9a-f-]{36}$/i.test(supplierId)||!["AFN","USD","PKR"].includes(currency)||!Number.isFinite(rate)||rate<=0||!Number.isFinite(paid)||paid<0||items.length<1||items.length>50||notes.length>1000)return send(res,400,{error:"invalid_purchase"});
+   const supplier=await sql`SELECT id FROM suppliers WHERE id=${supplierId} AND workspace_id=${workspaceId} LIMIT 1`;if(!supplier.length)return send(res,400,{error:"supplier_not_found"});
+   const cleanItems=[];
+   for(const raw of items){const productId=clean(raw.product_id),quantity=Number(raw.quantity),unitCost=Number(raw.unit_cost);if(!/^[0-9a-f-]{36}$/i.test(productId)||!Number.isFinite(quantity)||quantity<=0||!Number.isFinite(unitCost)||unitCost<0)return send(res,400,{error:"invalid_item"});const product=await sql`SELECT id,unit FROM products WHERE id=${productId} AND workspace_id=${workspaceId} AND active=true LIMIT 1`;if(!product.length)return send(res,400,{error:"product_not_found"});cleanItems.push({product_id:productId,quantity:String(raw.quantity),unit_cost:String(raw.unit_cost),unit:product[0].unit})}
+   const jsonItems=JSON.stringify(cleanItems),totals=await sql`SELECT COALESCE(SUM((v->>'quantity')::numeric*(v->>'unit_cost')::numeric),0)::text total FROM jsonb_array_elements(${jsonItems}::jsonb) v`;
+   const total=Number(totals[0].total);if(!Number.isFinite(total)||total<=0||paid>total)return send(res,400,{error:"invalid_paid_amount"});
+   const purchaseId=crypto.randomUUID(),documentNo="BUY-"+new Date().toISOString().replace(/[-:TZ.]/g,"").slice(0,14)+"-"+crypto.randomBytes(2).toString("hex").toUpperCase();
+   const statements=[sql`INSERT INTO purchases(id,workspace_id,supplier_id,document_no,currency,exchange_rate,total_amount,paid_amount,notes) VALUES(${purchaseId},${workspaceId},${supplierId},${documentNo},${currency},${rate},${totals[0].total},${paid},${notes||null})`];
+   for(const item of cleanItems){statements.push(sql`INSERT INTO purchase_items(purchase_id,product_id,quantity,unit,unit_cost,currency,line_total) VALUES(${purchaseId},${item.product_id},${item.quantity}::numeric,${item.unit},${item.unit_cost}::numeric,${currency},${item.quantity}::numeric*${item.unit_cost}::numeric)`);statements.push(sql`INSERT INTO stock_movements(workspace_id,product_id,movement_type,quantity_delta,unit,unit_cost,source_id,notes) VALUES(${workspaceId},${item.product_id},'purchase',${item.quantity}::numeric,${item.unit},${item.unit_cost}::numeric*${rate},${purchaseId},${documentNo})`)}
+   if(paid>0)statements.push(sql`INSERT INTO payments(workspace_id,supplier_id,purchase_id,amount,currency,exchange_rate,notes) VALUES(${workspaceId},${supplierId},${purchaseId},${paid},${currency},${rate},'پرداخت هنگام ثبت خرید')`);
+   await sql.transaction(statements);return send(res,201,{ok:true,purchase:{id:purchaseId,document_no:documentNo,total_amount:totals[0].total,paid_amount:String(paid),currency,exchange_rate:rate,item_count:cleanItems.length}});
+  }
   if(req.method==="GET"){const rows=await sql`SELECT id,name,phone,address,notes,created_at FROM suppliers WHERE workspace_id=${workspaceId} ORDER BY created_at DESC LIMIT 300`;return send(res,200,{ok:true,suppliers:rows})}
   let input;try{input=await readBody(req)}catch{return send(res,413,{error:"request_too_large"})}
   const name=clean(input.name),phone=clean(input.phone),address=clean(input.address),notes=clean(input.notes);
