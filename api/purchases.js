@@ -28,7 +28,7 @@ module.exports=async function(req,res){
   let input;try{input=await readBody(req)}catch{return send(res,413,{error:"request_too_large"})}
   const supplierId=clean(input.supplier_id),currency=clean(input.currency),rate=amount(input.exchange_rate),paid=amount(input.paid_amount??0);
   const allowed=["AFN","USD","PKR"];
-  if(!supplierId||!allowed.includes(currency)||!Number.isFinite(rate)||rate<=0||rate>1000000||!Number.isFinite(paid)||paid<0)return send(res,400,{error:"invalid_purchase_details"});
+  if(!/^[0-9a-f-]{36}$/i.test(supplierId)||!allowed.includes(currency)||!Number.isFinite(rate)||rate<=0||rate>1000000||!Number.isFinite(paid)||paid<0)return send(res,400,{error:"invalid_purchase_details"});
   if(currency==="AFN"&&rate!==1)return send(res,400,{error:"afn_rate_must_be_one"});
   const supplier=await sql`SELECT id FROM suppliers WHERE id=${supplierId} AND workspace_id=${workspaceId} LIMIT 1`;
   if(!supplier.length)return send(res,400,{error:"supplier_not_found"});
@@ -36,7 +36,7 @@ module.exports=async function(req,res){
   const items=[];let total=0;
   for(const raw of input.items){
    const productId=clean(raw.product_id),quantity=amount(raw.quantity),unitPrice=amount(raw.unit_price);
-   if(!productId||!Number.isFinite(quantity)||quantity<=0||!Number.isFinite(unitPrice)||unitPrice<=0)return send(res,400,{error:"invalid_purchase_item"});
+   if(!/^[0-9a-f-]{36}$/i.test(productId)||!Number.isFinite(quantity)||quantity<=0||!Number.isFinite(unitPrice)||unitPrice<=0)return send(res,400,{error:"invalid_purchase_item"});
    const products=await sql`SELECT id,name,unit FROM products WHERE id=${productId} AND workspace_id=${workspaceId} AND active=true LIMIT 1`;
    if(!products.length)return send(res,400,{error:"product_not_found"});
    const product=products[0],lineTotal=Math.round(quantity*unitPrice*100)/100;
