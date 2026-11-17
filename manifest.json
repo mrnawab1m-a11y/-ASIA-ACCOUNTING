@@ -1,0 +1,17 @@
+{
+  "name": "حسابداری نمایندگی آسیا",
+  "short_name": "حسابداری آسیا",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#101e32",
+  "theme_color": "#101e32",
+  "icons": [
+    {
+      "src": "/assets/asia-app-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
