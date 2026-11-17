@@ -75,10 +75,37 @@ module.exports = async function handler(req, res) {
     if (!unit || unit.length > 40) return send(res, 400, { ok: false, error: "invalid_unit" });
     if ([category, brand, model, size].some(v => v.length > 120)) return send(res, 400, { ok: false, error: "field_too_long" });
 
-    const rows = await sql`INSERT INTO products (workspace_id, name, category, brand, model, size, unit)
-      VALUES (${workspaceId}, ${name}, ${category || null}, ${brand || null}, ${model || null}, ${size || null}, ${unit})
-      RETURNING id, name, category, brand, model, size, unit, created_at`;
-    return send(res, 201, { ok: true, product: { ...rows[0], stock_quantity: "0" } });
+    const initialQuantity = Number(input.initial_stock_quantity ?? 0);
+    const initialUnitCost = Number(input.initial_unit_cost ?? 0);
+    if (!Number.isFinite(initialQuantity) || initialQuantity < 0 || initialQuantity > 1000000000 ||
+        !Number.isFinite(initialUnitCost) || initialUnitCost < 0 || initialUnitCost > 1000000000) {
+      return send(res, 400, { ok: false, error: "invalid_opening_stock" });
+    }
+    if (initialQuantity > 0 && initialUnitCost <= 0) {
+      return send(res, 400, { ok: false, error: "opening_cost_required" });
+    }
+
+    const productId = crypto.randomUUID();
+    const statements = [sql`INSERT INTO products (id, workspace_id, name, category, brand, model, size, unit)
+      VALUES (${productId}, ${workspaceId}, ${name}, ${category || null}, ${brand || null}, ${model || null}, ${size || null}, ${unit})`];
+    let openingPurchaseId = null;
+    let openingTotal = 0;
+    if (initialQuantity > 0) {
+      openingPurchaseId = crypto.randomUUID();
+      const documentNo = "OPEN-" + Date.now().toString(36).toUpperCase() + "-" + crypto.randomBytes(2).toString("hex").toUpperCase();
+      openingTotal = Math.round(initialQuantity * initialUnitCost * 100) / 100;
+      statements.push(sql`INSERT INTO purchases (id, workspace_id, supplier_id, document_no, currency, exchange_rate, total_amount, paid_amount, notes)
+        VALUES (${openingPurchaseId}, ${workspaceId}, NULL, ${documentNo}, 'AFN', 1, ${openingTotal}, 0, 'موجودی ابتدایی هنگام تعریف محصول')`);
+      statements.push(sql`INSERT INTO purchase_items (purchase_id, product_id, quantity, unit, unit_cost, currency, line_total)
+        VALUES (${openingPurchaseId}, ${productId}, ${initialQuantity}, ${unit}, ${initialUnitCost}, 'AFN', ${openingTotal})`);
+      statements.push(sql`INSERT INTO stock_movements (workspace_id, product_id, movement_type, quantity_delta, unit, unit_cost, source_id, notes)
+        VALUES (${workspaceId}, ${productId}, 'purchase', ${initialQuantity}, ${unit}, ${initialUnitCost}, ${openingPurchaseId}, 'ثبت موجودی ابتدایی')`);
+      statements.push(sql`INSERT INTO stock_cost_layers (workspace_id, product_id, source_purchase_id, quantity_received, quantity_remaining, unit_cost)
+        VALUES (${workspaceId}, ${productId}, ${openingPurchaseId}, ${initialQuantity}, ${initialQuantity}, ${initialUnitCost})`);
+    }
+    await sql.transaction(statements);
+    const rows = await sql`SELECT id, name, category, brand, model, size, unit, created_at FROM products WHERE id = ${productId} AND workspace_id = ${workspaceId}`;
+    return send(res, 201, { ok: true, product: { ...rows[0], stock_quantity: String(initialQuantity), opening_stock_value: openingTotal } });
   } catch (error) {
     console.error("Asia products API error:", error?.message || "unknown");
     return send(res, 500, { ok: false, error: "server_error" });
