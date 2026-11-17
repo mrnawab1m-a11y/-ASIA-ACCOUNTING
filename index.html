@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="fa" dir="rtl">
 <head>
-<meta charset="utf-8"><link rel="icon" type="image/svg+xml" href="/assets/asia-app-icon.svg?v=20261117"><link rel="apple-touch-icon" sizes="128x128" type="image/png" href="/assets/asia-app-icon.png?v=20261117"><link rel="manifest" href="/manifest.json?v=20261117"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#101e32"><meta name="application-name" content="حسابداری آسیا"><meta name="apple-mobile-web-app-title" content="حسابداری آسیا"><meta name="description" content="حسابداری نمایندگی آسیا — تایر، ویل، کپ و لوازم موتر">
+<meta charset="utf-8"><link rel="icon" type="image/svg+xml" href="/assets/asia-app-icon.svg?v=20261117"><link rel="apple-touch-icon" sizes="128x128" href="/assets/asia-app-icon.png"><link rel="manifest" href="/manifest.json"><meta name="format-detection" content="telephone=no"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#101e32"><meta name="application-name" content="حسابداری آسیا"><meta name="apple-mobile-web-app-title" content="حسابداری آسیا"><meta name="description" content="حسابداری نمایندگی آسیا — تایر، ویل، کپ و لوازم موتر">
 <title>حسابداری نمایندگی آسیا</title>
 <style>
 :root{--navy:#101e32;--gold:#d7b46a;--bg:#f2f4f7;--ink:#172337;--muted:#778397;--line:#e5e9ef}*{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:Tahoma,Arial,sans-serif;color:var(--ink)}button,input,select{font:inherit}button{cursor:pointer}[hidden]{display:none!important}
@@ -315,4 +315,13 @@ function openSection(i){$('dashboard').hidden=true;$('menuPage').hidden=true;$('
 $('menuOpen').addEventListener('click',openMenu);$('salesCart').addEventListener('click',()=>openSection(2));$('menuBack').addEventListener('click',()=>{$('menuPage').hidden=true;$('dashboard').hidden=false});$('back').addEventListener('click',()=>{$('subpage').hidden=true;$('menuPage').hidden=false});
 $('logout').addEventListener('click',async()=>{try{await fetch('/api/auth',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'logout'})})}finally{$('menuPage').hidden=true;$('subpage').hidden=true;showLogin()}});
 buildMenu();checkSession();
-</script></body></html>
+</script>
+<script>
+// iOS 16 Home Screen web-app support. Keep authenticated/API responses out of the cache.
+if ("serviceWorker" in navigator && location.protocol === "https:") {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => {});
+  });
+}
+</script>
+</body></html>
