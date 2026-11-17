@@ -57,9 +57,17 @@ module.exports = async function handler(req, res) {
 
     if (req.method === "GET") {
       const rows = await sql`SELECT p.id, p.name, p.category, p.brand, p.model, p.size, p.unit, p.created_at,
-        COALESCE(SUM(sm.quantity_delta), 0)::text AS stock_quantity
+        COALESCE(SUM(sm.quantity_delta), 0)::text AS stock_quantity,
+        COALESCE(MAX(cost.stock_value), 0)::text AS stock_value,
+        CASE WHEN COALESCE(SUM(sm.quantity_delta), 0) > 0
+          THEN (COALESCE(MAX(cost.stock_value), 0) / SUM(sm.quantity_delta))::text ELSE '0' END AS stock_unit_cost
         FROM products p
         LEFT JOIN stock_movements sm ON sm.product_id = p.id AND sm.workspace_id = p.workspace_id
+        LEFT JOIN LATERAL (
+          SELECT SUM(scl.quantity_remaining * scl.unit_cost) AS stock_value
+          FROM stock_cost_layers scl
+          WHERE scl.product_id = p.id AND scl.workspace_id = p.workspace_id
+        ) cost ON true
         WHERE p.workspace_id = ${workspaceId} AND p.active = true
         GROUP BY p.id ORDER BY p.created_at DESC`;
       return send(res, 200, { ok: true, products: rows });
