@@ -56,7 +56,7 @@ module.exports = async function handler(req, res) {
     const workspaceId = sessions[0].workspace_id;
 
     if (req.method === "GET") {
-      const rows = await sql`SELECT p.id, p.name, p.category, p.brand, p.model, p.size, p.unit, p.created_at,
+      const rows = await sql`SELECT p.id, p.name, p.category, p.brand, p.model, p.size, p.unit, p.sale_price, p.created_at,
         COALESCE(SUM(sm.quantity_delta), 0)::text AS stock_quantity,
         COALESCE(MAX(cost.stock_value), 0)::text AS stock_value,
         CASE WHEN COALESCE(SUM(sm.quantity_delta), 0) > 0
@@ -79,6 +79,8 @@ module.exports = async function handler(req, res) {
     const name = clean(input.name), unit = clean(input.unit);
     const category = clean(input.category), brand = clean(input.brand);
     const model = clean(input.model), size = clean(input.size);
+    const salePrice = input.sale_price === undefined || input.sale_price === '' ? null : Number(input.sale_price);
+    if (salePrice !== null && (!Number.isFinite(salePrice) || salePrice < 0 || salePrice > 1000000000)) return send(res, 400, { ok: false, error: 'invalid_sale_price' });
     if (!name || name.length > 120) return send(res, 400, { ok: false, error: "invalid_name" });
     if (!unit || unit.length > 40) return send(res, 400, { ok: false, error: "invalid_unit" });
     if ([category, brand, model, size].some(v => v.length > 120)) return send(res, 400, { ok: false, error: "field_too_long" });
@@ -94,8 +96,8 @@ module.exports = async function handler(req, res) {
     }
 
     const productId = crypto.randomUUID();
-    const statements = [sql`INSERT INTO products (id, workspace_id, name, category, brand, model, size, unit)
-      VALUES (${productId}, ${workspaceId}, ${name}, ${category || null}, ${brand || null}, ${model || null}, ${size || null}, ${unit})`];
+    const statements = [sql`INSERT INTO products (id, workspace_id, name, category, brand, model, size, unit, sale_price)
+      VALUES (${productId}, ${workspaceId}, ${name}, ${category || null}, ${brand || null}, ${model || null}, ${size || null}, ${unit}, ${salePrice})`];
     let openingPurchaseId = null;
     let openingTotal = 0;
     if (initialQuantity > 0) {
@@ -112,7 +114,7 @@ module.exports = async function handler(req, res) {
         VALUES (${workspaceId}, ${productId}, ${openingPurchaseId}, ${initialQuantity}, ${initialQuantity}, ${initialUnitCost})`);
     }
     await sql.transaction(statements);
-    const rows = await sql`SELECT id, name, category, brand, model, size, unit, created_at FROM products WHERE id = ${productId} AND workspace_id = ${workspaceId}`;
+    const rows = await sql`SELECT id, name, category, brand, model, size, unit, sale_price, created_at FROM products WHERE id = ${productId} AND workspace_id = ${workspaceId}`;
     return send(res, 201, { ok: true, product: { ...rows[0], stock_quantity: String(initialQuantity), opening_stock_value: openingTotal } });
   } catch (error) {
     console.error("Asia products API error:", error?.message || "unknown");
