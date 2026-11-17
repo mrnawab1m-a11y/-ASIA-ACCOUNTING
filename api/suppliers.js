@@ -24,12 +24,24 @@ module.exports=async function(req,res){
    const supplierId=clean(input.supplier_id),currency=clean(input.currency),rate=Number(input.exchange_rate),paid=Number(input.paid_amount||0),notes=clean(input.notes),items=Array.isArray(input.items)?input.items:[];
    if((supplierId&&!/^[0-9a-f-]{36}$/i.test(supplierId))||!["AFN","USD","PKR"].includes(currency)||!Number.isFinite(rate)||rate<=0||!Number.isFinite(paid)||paid<0||items.length<1||items.length>50||notes.length>1000)return send(res,400,{error:"invalid_purchase"});
    if(supplierId){const supplier=await sql`SELECT id FROM suppliers WHERE id=${supplierId} AND workspace_id=${workspaceId} LIMIT 1`;if(!supplier.length)return send(res,400,{error:"supplier_not_found"});}
-   const cleanItems=[];
-   for(const raw of items){const productId=clean(raw.product_id),quantity=Number(raw.quantity),unitCost=Number(raw.unit_cost);if(!/^[0-9a-f-]{36}$/i.test(productId)||!Number.isFinite(quantity)||quantity<=0||!Number.isFinite(unitCost)||unitCost<0)return send(res,400,{error:"invalid_item"});const product=await sql`SELECT id,unit FROM products WHERE id=${productId} AND workspace_id=${workspaceId} AND active=true LIMIT 1`;if(!product.length)return send(res,400,{error:"product_not_found"});cleanItems.push({product_id:productId,quantity:String(raw.quantity),unit_cost:String(raw.unit_cost),unit:product[0].unit})}
+   const cleanItems=[],productStatements=[],matchedProducts=new Map();
+   for(const raw of items){
+    const name=clean(raw.name),unit=clean(raw.unit),size=clean(raw.size),model=clean(raw.model),quantity=Number(raw.quantity),unitCost=Number(raw.unit_cost);
+    if(!name||name.length>120||!unit||unit.length>40||size.length>120||model.length>120||!Number.isFinite(quantity)||quantity<=0||!Number.isFinite(unitCost)||unitCost<0)return send(res,400,{error:"invalid_item"});
+    const key=[name,unit,size,model].map(v=>v.toLocaleLowerCase()).join("\u001f");
+    let product=matchedProducts.get(key);
+    if(!product){
+      const found=await sql`SELECT id,unit FROM products WHERE workspace_id=${workspaceId} AND active=true AND lower(btrim(name))=lower(${name}) AND lower(btrim(unit))=lower(${unit}) AND lower(COALESCE(btrim(size),''))=lower(${size}) AND lower(COALESCE(btrim(model),''))=lower(${model}) ORDER BY created_at LIMIT 1`;
+      if(found.length){product={id:found[0].id,unit:found[0].unit};}
+      else{product={id:crypto.randomUUID(),unit};productStatements.push(sql`INSERT INTO products(id,workspace_id,name,size,model,unit) VALUES(${product.id},${workspaceId},${name},${size||null},${model||null},${unit})`);}
+      matchedProducts.set(key,product);
+    }
+    cleanItems.push({product_id:product.id,quantity:String(raw.quantity),unit_cost:String(raw.unit_cost),unit:product.unit});
+   }
    const jsonItems=JSON.stringify(cleanItems),totals=await sql`SELECT COALESCE(SUM((v->>'quantity')::numeric*(v->>'unit_cost')::numeric),0)::text total FROM jsonb_array_elements(${jsonItems}::jsonb) v`;
    const total=Number(totals[0].total);if(!Number.isFinite(total)||total<=0||paid>total)return send(res,400,{error:"invalid_paid_amount"});if(!supplierId&&Math.abs(paid-total)>0.000001)return send(res,400,{error:"cash_purchase_must_be_fully_paid"});
    const purchaseId=crypto.randomUUID(),documentNo="BUY-"+new Date().toISOString().replace(/[-:TZ.]/g,"").slice(0,14)+"-"+crypto.randomBytes(2).toString("hex").toUpperCase();
-   const statements=[sql`INSERT INTO purchases(id,workspace_id,supplier_id,document_no,currency,exchange_rate,total_amount,paid_amount,notes) VALUES(${purchaseId},${workspaceId},${supplierId||null},${documentNo},${currency},${rate},${totals[0].total},${paid},${notes||null})`];
+   const statements=[...productStatements,sql`INSERT INTO purchases(id,workspace_id,supplier_id,document_no,currency,exchange_rate,total_amount,paid_amount,notes) VALUES(${purchaseId},${workspaceId},${supplierId||null},${documentNo},${currency},${rate},${totals[0].total},${paid},${notes||null})`];
    for(const item of cleanItems){statements.push(sql`INSERT INTO purchase_items(purchase_id,product_id,quantity,unit,unit_cost,currency,line_total) VALUES(${purchaseId},${item.product_id},${item.quantity}::numeric,${item.unit},${item.unit_cost}::numeric,${currency},${item.quantity}::numeric*${item.unit_cost}::numeric)`);statements.push(sql`INSERT INTO stock_movements(workspace_id,product_id,movement_type,quantity_delta,unit,unit_cost,source_id,notes) VALUES(${workspaceId},${item.product_id},'purchase',${item.quantity}::numeric,${item.unit},${item.unit_cost}::numeric*${rate},${purchaseId},${documentNo})`);statements.push(sql`INSERT INTO stock_cost_layers(workspace_id,product_id,source_purchase_id,quantity_received,quantity_remaining,unit_cost) VALUES(${workspaceId},${item.product_id},${purchaseId},${item.quantity}::numeric,${item.quantity}::numeric,${item.unit_cost}::numeric*${rate})`)}
    if(paid>0&&supplierId)statements.push(sql`INSERT INTO payments(workspace_id,supplier_id,purchase_id,amount,currency,exchange_rate,notes) VALUES(${workspaceId},${supplierId},${purchaseId},${paid},${currency},${rate},'پرداخت هنگام ثبت خرید')`);
    await sql.transaction(statements);return send(res,201,{ok:true,purchase:{id:purchaseId,document_no:documentNo,total_amount:totals[0].total,paid_amount:String(paid),currency,exchange_rate:rate,item_count:cleanItems.length}});
