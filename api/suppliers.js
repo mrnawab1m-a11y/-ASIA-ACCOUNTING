@@ -17,7 +17,7 @@ module.exports=async function(req,res){
   const workspaceId=sessions[0].workspace_id;
   if(new URL(req.url,"https://local.invalid").searchParams.get("action")==="purchase"){
    if(req.method==="GET"){
-    const rows=await sql`SELECT p.id,p.document_no,p.purchased_at,p.currency,p.exchange_rate,p.total_amount,p.paid_amount,s.name supplier_name,COALESCE(json_agg(json_build_object('product_name',pr.name,'quantity',pi.quantity,'unit',pi.unit,'unit_cost',pi.unit_cost)) FILTER(WHERE pi.id IS NOT NULL),'[]'::json) items FROM purchases p LEFT JOIN suppliers s ON s.id=p.supplier_id LEFT JOIN purchase_items pi ON pi.purchase_id=p.id LEFT JOIN products pr ON pr.id=pi.product_id WHERE p.workspace_id=${workspaceId} GROUP BY p.id,s.name ORDER BY p.purchased_at DESC LIMIT 100`;
+    const rows=await sql`SELECT p.id,p.document_no,p.purchased_at,p.currency,p.exchange_rate,p.total_amount,p.paid_amount,s.name supplier_name,COALESCE(json_agg(json_build_object('product_id',pi.product_id,'product_name',pr.name,'category',pr.category,'brand',pr.brand,'model',pr.model,'size',pr.size,'quantity',pi.quantity,'unit',pi.unit,'unit_cost',pi.unit_cost,'line_total',pi.line_total)) FILTER(WHERE pi.id IS NOT NULL),'[]'::json) items FROM purchases p LEFT JOIN suppliers s ON s.id=p.supplier_id LEFT JOIN purchase_items pi ON pi.purchase_id=p.id LEFT JOIN products pr ON pr.id=pi.product_id WHERE p.workspace_id=${workspaceId} GROUP BY p.id,s.name ORDER BY p.purchased_at DESC LIMIT 100`;
     return send(res,200,{ok:true,purchases:rows});
    }
    let input;try{input=await readBody(req)}catch{return send(res,413,{error:"request_too_large"})}
