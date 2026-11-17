@@ -86,6 +86,20 @@ body{font-size:16px}
 .purchase-notes{margin-top:10px;padding:9px 11px;border-radius:9px;background:#fffaf0;color:#6d5b37;font-size:12px;line-height:1.7}
 @media(min-width:650px){.purchase-meta{grid-template-columns:repeat(4,minmax(0,1fr))}.purchase-totals{grid-template-columns:repeat(4,minmax(0,1fr))}}
 @media(max-width:430px){.purchase-card{padding:10px}.purchase-toolbar-meta{width:100%}.purchase-meta{gap:8px}.purchase-totals{gap:8px;padding:9px}}
+
+/* Global text readability: raise every small label and detail across the app */
+body{font-size:16px!important}
+:where(p,small,label,th,td,span,.note,.status,.empty,.buy-help,.foot,.purchase-detail,.purchase-notes,.purchase-toolbar-meta,.purchase-stat small,.purchase-stat span,.purchase-meta small,.purchase-meta strong,.purchase-totals small,.purchase-totals strong,.purchase-card-head small,.purchase-status,.sale-invoice-head small,.sale-invoice-head span,.sale-section-title,.sale-section-title span,.sale-line-head strong,.sale-line-total,.sale-line-total strong,.sale-money-row,.sale-currency-row,.buy-line-bottom,.buy-total-card small,.buy-total-card strong){font-size:max(14px,1em)!important;line-height:1.65}
+.products-table,.products-table th,.products-table td,.purchase-items-table,.purchase-items-table th,.purchase-items-table td{font-size:14px!important;line-height:1.6!important}
+.field label,.sale-product-picker>label{font-size:15px!important}
+input,select,textarea,button{font-size:16px}
+.tile small{font-size:14px!important}
+.purchase-meta strong,.purchase-totals strong{font-size:15px!important}
+.purchase-card-head h3,.panel h3{font-size:18px}
+@media(max-width:430px){
+ :where(p,small,label,th,td,span,.note,.status,.empty,.buy-help,.purchase-detail,.purchase-notes,.purchase-meta strong,.purchase-totals strong){font-size:max(14px,1em)!important}
+ .products-table th,.products-table td{font-size:14px!important}
+}
 </style></head>
 <body>
 <div id="loginWrap" class="login-wrap"><main class="login"><img class="mark" src="/assets/asia-logo.svg" alt="لوگوی حسابداری آسیا؛ تایر، ویل و کپ"><h1>حسابداری نمایندگی آسیا</h1><p class="sub">تایر • ویل • کپ • لوازم موتر</p><p style="color:#d7b46a;font-size:12px;margin:-17px 0 22px">مدیریت حرفه‌ای، حساب دقیق، سود بیشتر</p><p class="founder-name">haji nawab parwani</p><form id="loginForm"><label for="pin">کد امنیتی شش‌رقمی را وارد کنید</label><input id="pin" type="password" inputmode="numeric" autocomplete="current-password" maxlength="6" minlength="6" required><button id="submit" class="gold-btn" type="submit">تأیید و ورود</button></form><div id="message" class="hint" role="alert"></div><div class="secure">دسترسی فقط پس از تأیید کد مدیر امکان‌پذیر است</div></main></div>
