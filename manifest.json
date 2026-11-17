@@ -8,10 +8,10 @@
   "theme_color": "#101e32",
   "icons": [
     {
-      "src": "/assets/asia-app-icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "src": "/assets/asia-app-icon.png",
+      "sizes": "128x128",
+      "type": "image/png",
+      "purpose": "any"
     }
   ]
 }
