@@ -108,12 +108,19 @@ async function renderSales(){
    holder.querySelectorAll('.remove-sale').forEach(el=>el.addEventListener('click',()=>{invoiceItems.splice(Number(el.dataset.index),1);drawInvoiceItems()}));
    calc();
   }
-  $('addSaleItem').addEventListener('click',()=>{
+  function addSelectedSaleProduct(){
    const select=$('saleProductSelect'),id=select.value,status=$('productPickStatus');status.className='status';
    if(!id){status.textContent='لطفاً نوع محصول را انتخاب کنید.';return}
-   if(invoiceItems.some(x=>x.product_id===id)){status.textContent='این محصول قبلاً به فاکتور اضافه شده است.';return}
-   const option=select.selectedOptions[0];invoiceItems.push({product_id:id,name:option.dataset.name,details:option.dataset.details||'',stock:option.dataset.stock||'0',unit:option.dataset.unit,quantity:'',unit_price:$('saleCurrency').value==='AFN'?(option.dataset.salePrice||''):''});status.textContent='محصول به فاکتور اضافه شد.';select.value='';drawInvoiceItems();
-  });
+   const existingIndex=invoiceItems.findIndex(x=>x.product_id===id);
+   if(existingIndex>=0){status.textContent='این محصول قبلاً به فاکتور اضافه شده است؛ تعداد همان محصول را وارد کنید.';const existing=$('saleItems').querySelector('.sale-qty[data-index="'+existingIndex+'"]');if(existing){existing.focus();existing.scrollIntoView({behavior:'smooth',block:'center'})}select.value='';return}
+   const option=select.selectedOptions[0];
+   invoiceItems.push({product_id:id,name:option.dataset.name,details:option.dataset.details||'',stock:option.dataset.stock||'0',unit:option.dataset.unit,quantity:'',unit_price:$('saleCurrency').value==='AFN'?(option.dataset.salePrice||''):''});
+   status.textContent='محصول به سبد اضافه شد؛ تعداد را در خانهٔ برجسته وارد کنید.';
+   select.value='';drawInvoiceItems();
+   setTimeout(()=>{const input=$('saleItems').querySelector('.sale-qty[data-index="'+(invoiceItems.length-1)+'"]');if(input){input.focus();input.scrollIntoView({behavior:'smooth',block:'center'})}},80);
+  }
+  $('saleProductSelect').addEventListener('change',addSelectedSaleProduct);
+  $('addSaleItem').addEventListener('click',addSelectedSaleProduct);
   $('saleCurrency').addEventListener('change',()=>{$('saleRate').value=$('saleCurrency').value==='AFN'?'1':'';calc();drawInvoiceItems()});
   $('salePaid').addEventListener('input',calc);
   $('saleForm').addEventListener('submit',async e=>{
