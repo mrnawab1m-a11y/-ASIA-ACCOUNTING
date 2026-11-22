@@ -104,6 +104,21 @@ body{font-size:16px}
 .home-actions>.home-tile small{font-size:13px;color:#d6deea;margin-top:7px}
 @media(min-width:650px){.home-actions{display:flex!important;flex-direction:column!important;max-width:680px;margin:0 auto}.home-actions>.home-tile{width:100%}}
 
+
+/* iPhone safe-area and full-page visibility fix */
+html{min-height:100%;scroll-padding-top:env(safe-area-inset-top,0px)}
+body{min-height:100%;overflow-x:hidden;overflow-y:auto}
+#app{min-height:100dvh;padding-top:calc(env(safe-area-inset-top,0px) + 30px);padding-bottom:calc(env(safe-area-inset-bottom,0px) + 16px)}
+#app .top{padding-top:24px}
+#app .content{padding-bottom:calc(36px + env(safe-area-inset-bottom,0px))}
+@media(max-width:650px){
+  #app{padding-top:calc(env(safe-area-inset-top,0px) + 34px)}
+  #app .top{padding:22px 18px 24px}
+  #app .toprow{padding-top:4px}
+  #app .menu-btn{margin-top:8px}
+  #app .content{padding:18px 14px calc(38px + env(safe-area-inset-bottom,0px))}
+}
+
 </style></head>
 <body>
 <div id="loginWrap" class="login-wrap"><main class="login"><img class="mark" src="/assets/asia-logo.svg" alt="لوگوی حسابداری آسیا؛ تایر، ویل و کپ"><h1>حسابداری نمایندگی آسیا</h1><p class="sub">تایر • ویل • کپ • لوازم موتر</p><p style="color:#d7b46a;font-size:12px;margin:-17px 0 22px">مدیریت حرفه‌ای، حساب دقیق، سود بیشتر</p><p class="founder-name">haji nawab parwani</p><form id="loginForm"><label for="pin">کد امنیتی شش‌رقمی را وارد کنید</label><input id="pin" type="password" inputmode="numeric" autocomplete="current-password" maxlength="6" minlength="6" required><button id="submit" class="gold-btn" type="submit">تأیید و ورود</button></form><div id="message" class="hint" role="alert"></div><div class="secure">دسترسی فقط پس از تأیید کد مدیر امکان‌پذیر است</div></main></div>
