@@ -139,10 +139,10 @@ function openMenu(){ $('dashboard').hidden=true;$('subpage').hidden=true;$('menu
 const dailyDuas=[['اللَّهُمَّ بَارِكْ لَنَا فِي يَوْمِنَا هَذَا','خدایا، روز ما را پربرکت بگردان.'],['رَبِّ زِدْنِي عِلْمًا','پروردگارا، دانش مرا زیاد کن.'],['اللَّهُمَّ ارْزُقْنَا رِزْقًا حَلَالًا طَيِّبًا','خدایا، روزی حلال و پاک نصیب ما کن.'],['حَسْبُنَا اللَّهُ وَنِعْمَ الْوَكِيلُ','خداوند ما را کافی است و بهترین کارساز است.'],['رَبَّنَا آتِنَا فِي الدُّنْيَا حَسَنَةً','پروردگارا، در دنیا به ما نیکی عطا کن.'],['اللَّهُمَّ اغْفِرْ لِي وَارْحَمْنِي','خدایا، مرا بیامرز و بر من رحم کن.'],['سُبْحَانَ اللَّهِ وَبِحَمْدِهِ','پاک و منزه است خداوند و ستایش از آن اوست.']];let lastDuaIndex=-1;function updateHomeClock(){const now=new Date();$('today').textContent=new Intl.DateTimeFormat('fa-AF',{dateStyle:'full'}).format(now);$('clock').textContent=new Intl.DateTimeFormat('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(now)}function showApp(){loginWrap.hidden=true;app.hidden=false;updateHomeClock();let next=Math.floor(Math.random()*dailyDuas.length);if(dailyDuas.length>1&&next===lastDuaIndex)next=(next+1+Math.floor(Math.random()*(dailyDuas.length-1)))%dailyDuas.length;lastDuaIndex=next;$('dailyDua').textContent=dailyDuas[next][0];$('duaMeaning').textContent=dailyDuas[next][1]}setInterval(()=>{if(!app.hidden&&$('dashboard')&&!$('dashboard').hidden)updateHomeClock()},1000)
 function showLogin(){app.hidden=true;loginWrap.hidden=false;pin.value=''}
 async function checkSession(){
+ // Require the administrator PIN whenever the app is opened or refreshed.
+ // Revoke any previously stored browser session before showing the login screen.
  try{
-  const r=await fetch('/api/auth',{method:'GET',credentials:'same-origin',cache:'no-store'});
-  const d=await r.json();
-  if(r.ok&&d.authenticated){showApp();return}
+  await fetch('/api/auth',{method:'POST',credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'logout'})});
  }catch(e){}
  showLogin();
 }
