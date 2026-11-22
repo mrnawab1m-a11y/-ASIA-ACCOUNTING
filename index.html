@@ -87,7 +87,24 @@ body{font-size:16px}
 .home-tile strong{font-size:16px;margin-top:10px}
 .home-tile small{font-size:12px;line-height:1.7}
 @media(min-width:650px){.home-actions{grid-template-columns:repeat(3,minmax(0,1fr))}}
-#menuPage[hidden],#subpage[hidden],#dashboard[hidden]{display:none!important}\n</style></head>
+#menuPage[hidden],#subpage[hidden],#dashboard[hidden]{display:none!important}\n
+/* Home screen refinement: prayer first, stacked action cards, lower menu control */
+.toprow{align-items:flex-start}
+.menu-btn{margin-top:17px;min-width:78px;min-height:44px;box-shadow:0 5px 16px #0002}
+.home-actions{display:flex!important;flex-direction:column!important;gap:15px!important}
+.home-actions>.dua-card{order:0;width:100%;min-height:150px;padding:22px 19px;border-radius:20px;background:linear-gradient(145deg,#fffdf7,#fff5df);border:1px solid #e5d2a5;box-shadow:0 8px 22px #8d6b2512}
+.home-actions>.dua-card .dua-label{font-size:13px;font-weight:700;color:#9a7938;margin-bottom:12px}
+.home-actions>.dua-card .dua-text{line-height:2.1}
+.home-actions>.dua-card #dailyDua{font-size:19px!important;font-weight:700;color:#493a20}
+.home-actions>.dua-card .dua-meaning{font-size:14px;line-height:1.9;color:#806b45}
+.home-actions>.home-tile{order:1;width:100%;min-height:104px;padding:19px 20px;border-radius:18px;display:flex;flex-direction:row;align-items:center;justify-content:flex-start;gap:17px;text-align:right;background:linear-gradient(115deg,#142943,#101e32);border:1px solid #d7b46a66;box-shadow:0 8px 20px #10203818;position:relative;overflow:hidden}
+.home-actions>.home-tile:after{content:"";position:absolute;right:0;top:0;bottom:0;width:4px;background:var(--gold)}
+.home-actions>.home-tile .ico{width:52px;height:52px;flex:0 0 52px;display:grid;place-items:center;border-radius:15px;background:#d7b46a20;font-size:27px}
+.home-actions>.home-tile strong{font-size:18px;color:#f1d28f;margin:0}
+.home-actions>.home-tile small{font-size:13px;color:#d6deea;margin-top:7px}
+@media(min-width:650px){.home-actions{display:flex!important;flex-direction:column!important;max-width:680px;margin:0 auto}.home-actions>.home-tile{width:100%}}
+
+</style></head>
 <body>
 <div id="loginWrap" class="login-wrap"><main class="login"><img class="mark" src="/assets/asia-logo.svg" alt="لوگوی حسابداری آسیا؛ تایر، ویل و کپ"><h1>حسابداری نمایندگی آسیا</h1><p class="sub">تایر • ویل • کپ • لوازم موتر</p><p style="color:#d7b46a;font-size:12px;margin:-17px 0 22px">مدیریت حرفه‌ای، حساب دقیق، سود بیشتر</p><p class="founder-name">haji nawab parwani</p><form id="loginForm"><label for="pin">کد امنیتی شش‌رقمی را وارد کنید</label><input id="pin" type="password" inputmode="numeric" autocomplete="current-password" maxlength="6" minlength="6" required><button id="submit" class="gold-btn" type="submit">تأیید و ورود</button></form><div id="message" class="hint" role="alert"></div><div class="secure">دسترسی فقط پس از تأیید کد مدیر امکان‌پذیر است</div></main></div>
 <div id="app" class="app" hidden><section id="dashboard"><header class="top"><div class="toprow"><div class="brand"><img class="brandmark" src="/assets/asia-logo.svg" alt="لوگوی آسیا"><div><h1>حسابداری نمایندگی آسیا</h1><small>تایر • ویل • کپ • لوازم موتر</small></div></div><button id="menuOpen" class="menu-btn">☰ منو</button></div><div class="date" id="today"></div><div class="clock" id="clock" aria-live="off">--:--:--</div></header><div class="content"><div class="home-grid home-actions"><div class="dua-card"><div class="dua-label">دعای روزانه</div><div class="dua-text" style="font-size:14px;margin-bottom:8px">أَعُوذُ بِاللَّهِ مِنَ الشَّيْطَانِ الرَّجِيمِ</div><div class="dua-text" style="font-size:14px;margin-bottom:14px">بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</div><div id="dailyDua" class="dua-text"></div><div id="duaMeaning" class="dua-meaning"></div></div><button class="tile home-tile" data-home-section="1"><span class="ico">🛒</span><strong>سبد خرید</strong><small>ثبت خرید و رسید خرید</small></button><button class="tile home-tile" data-home-section="2"><span class="ico">🧾</span><strong>سبد فروش</strong><small>ثبت فروش و صدور رسید</small></button></div></div></section>
